@@ -22,9 +22,10 @@ RUN flutter build web --release \
 # Runtime stage
 FROM nginx:alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /app/build/web /usr/share/nginx/html
 
-EXPOSE 80
+ENV PORT=8080
+EXPOSE 8080
 
 CMD ["nginx", "-g", "daemon off;"]
