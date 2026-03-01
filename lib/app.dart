@@ -881,14 +881,20 @@ class _GameScreenState extends ConsumerState<GameScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        _SideSection(
-          title: 'Discard Pile',
-          child: DiscardSummary(discard: state.discard),
+        SizedBox(
+          width: double.infinity,
+          child: _SideSection(
+            title: 'Discard Pile',
+            child: DiscardSummary(discard: state.discard),
+          ),
         ),
         const SizedBox(height: 12),
-        _SideSection(
-          title: 'Hint Overview',
-          child: _HintSummary(players: state.players),
+        SizedBox(
+          width: double.infinity,
+          child: _SideSection(
+            title: 'Hint Overview',
+            child: _HintSummary(players: state.players),
+          ),
         ),
       ],
     );
@@ -1288,20 +1294,37 @@ class _KnowledgeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isWhite = forceBlackForWhite || color == Colors.white;
-    if (isNumberChip) {
-      final activeText = const Color(0xFF6B7280);
-      final inactiveText = const Color(0xFF9CA3AF);
+    if (forceBlackForWhite && isWhite && !active) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.black12),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Colors.black45,
+                fontWeight: FontWeight.normal,
+                decoration: TextDecoration.lineThrough,
+              ),
+        ),
+      );
+    }
+    if (isNumberChip || (forceBlackForWhite && isWhite)) {
+      final textColor = const Color(0xFF6B7280);
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+          border: Border.all(color: const Color(0xFFBFC5CF)),
         ),
         child: Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: active ? activeText : inactiveText,
+                color: textColor,
                 decoration: active ? null : TextDecoration.lineThrough,
               ),
         ),
@@ -1426,10 +1449,11 @@ class DiscardSummary extends StatelessWidget {
     final summary = buildDiscardSummary(discard);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         if (recent.isNotEmpty)
           Wrap(
+            alignment: WrapAlignment.center,
             spacing: 6,
             runSpacing: 6,
             children: recent
@@ -1442,7 +1466,10 @@ class DiscardSummary extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
         const SizedBox(height: 12),
-        _DiscardGrid(summary: summary),
+        Align(
+          alignment: Alignment.center,
+          child: _DiscardGrid(summary: summary),
+        ),
       ],
     );
   }
@@ -1457,17 +1484,18 @@ class _DiscardBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = suitColor(card.color);
     final textColor =
-        card.color == ColorSuit.white ? const Color(0xFF495057) : color;
+        card.color == ColorSuit.white ? const Color(0xFF6B7280) : color;
+    final borderColor =
+        card.color == ColorSuit.white ? const Color(0xFFE5E7EB) : color;
+    final backgroundColor = card.color == ColorSuit.white
+        ? Colors.white
+        : color.withOpacity(0.18);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.18),
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: card.color == ColorSuit.white
-              ? const Color(0xFFADB5BD)
-              : color,
-        ),
+        border: Border.all(color: borderColor),
       ),
       child: Text(
         '${colorShort(card.color)}${card.number}',
