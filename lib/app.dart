@@ -885,6 +885,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
           title: 'Discard Pile',
           child: DiscardSummary(discard: state.discard),
         ),
+        const SizedBox(height: 12),
+        _SideSection(
+          title: 'Hint Overview',
+          child: _HintSummary(players: state.players),
+        ),
       ],
     );
   }
@@ -1234,6 +1239,7 @@ class _KnowledgePanel extends StatelessWidget {
                             label: colorShort(color),
                             active: active,
                             color: suitColor(color),
+                            forceBlackForWhite: color == ColorSuit.white,
                           );
                         }).toList(),
                       ),
@@ -1248,6 +1254,7 @@ class _KnowledgePanel extends StatelessWidget {
                             label: number.toString(),
                             active: active,
                             color: Colors.white,
+                            isNumberChip: true,
                           );
                         }),
                       ),
@@ -1268,27 +1275,73 @@ class _KnowledgeChip extends StatelessWidget {
     required this.label,
     required this.active,
     required this.color,
+    this.forceBlackForWhite = false,
+    this.isNumberChip = false,
   });
 
   final String label;
   final bool active;
   final Color color;
+  final bool forceBlackForWhite;
+  final bool isNumberChip;
 
   @override
   Widget build(BuildContext context) {
+    final isWhite = forceBlackForWhite || color == Colors.white;
+    if (isNumberChip) {
+      final activeText = const Color(0xFF6B7280);
+      final inactiveText = const Color(0xFF9CA3AF);
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: active ? activeText : inactiveText,
+                decoration: active ? null : TextDecoration.lineThrough,
+              ),
+        ),
+      );
+    }
+
+    final useBlackForWhite = forceBlackForWhite && isWhite;
+    final whiteTone = const Color(0xFF374151); // dark gray
+    final borderColor = useBlackForWhite
+        ? whiteTone
+        : (isWhite ? Colors.black : color);
+    final activeText =
+        useBlackForWhite ? whiteTone : (isWhite ? Colors.white : color);
+    final inactiveText = useBlackForWhite
+        ? whiteTone
+        : (isWhite ? const Color(0xFF374151) : Colors.black45);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: active ? color.withOpacity(0.18) : Colors.transparent,
+        color: useBlackForWhite
+            ? const Color(0xFFF3F4F6)
+            : (active
+                ? (isWhite
+                    ? const Color(0xFF111827)
+                    : color.withOpacity(0.18))
+                : Colors.transparent),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: active ? color.withOpacity(0.6) : Colors.black12,
+          color: useBlackForWhite
+              ? borderColor
+              : (active
+                  ? (isWhite ? borderColor : color.withOpacity(0.6))
+                  : (isWhite ? const Color(0xFF9CA3AF) : Colors.black12)),
         ),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: active ? color : Colors.black45,
+              color: active ? activeText : inactiveText,
+              fontWeight: isWhite ? FontWeight.w700 : null,
               decoration: active ? null : TextDecoration.lineThrough,
             ),
       ),
@@ -1581,6 +1634,81 @@ class _SideSection extends StatelessWidget {
           const SizedBox(height: 12),
           child,
         ],
+      ),
+    );
+  }
+}
+
+class _HintSummary extends StatelessWidget {
+  const _HintSummary({required this.players});
+
+  final List<PlayerState> players;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: players.map((player) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 70,
+                child: Text(
+                  player.name,
+                  style: Theme.of(context).textTheme.labelSmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: List.generate(player.knowledge.length, (index) {
+                    final info = player.knowledge[index];
+                    return _HintBadge(knowledge: info);
+                  }),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _HintBadge extends StatelessWidget {
+  const _HintBadge({required this.knowledge});
+
+  final CardKnowledge knowledge;
+
+  @override
+  Widget build(BuildContext context) {
+    final knownColor = knowledge.knownColor;
+    final badgeColor = knownColor == null
+        ? const Color(0xFF94A3B8)
+        : suitColor(knownColor);
+    final textColor =
+        knownColor == ColorSuit.white ? const Color(0xFF111827) : badgeColor;
+    final isUnknown = knowledge.badge == '??';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: badgeColor.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: badgeColor.withOpacity(0.7)),
+      ),
+      child: Text(
+        knowledge.badge,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: isUnknown ? Colors.black54 : textColor,
+              fontWeight: FontWeight.w600,
+            ),
       ),
     );
   }
