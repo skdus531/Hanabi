@@ -111,53 +111,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       body: AppBackdrop(
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                Text(
-                  'Hanabi',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 48,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Co-op fireworks. Limited clues. Perfect score awaits.',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 32),
-                SegmentedButton<AppMode>(
-                  segments: const [
-                    ButtonSegment(
-                      value: AppMode.local,
-                      label: Text('Local'),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact =
+                  ResponsiveValues.isCompactWidth(constraints.maxWidth);
+              final padding = ResponsiveValues.horizontalPadding(context);
+              final titleSize = ResponsiveValues.titleSize(context);
+              return SingleChildScrollView(
+                padding: EdgeInsets.all(padding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    Text(
+                      'Hanabi',
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: titleSize,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    ButtonSegment(
-                      value: AppMode.online,
-                      label: Text('Online'),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Co-op fireworks. Limited clues. Perfect score awaits.',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontSize: isCompact ? 15 : null,
+                          ),
+                    ),
+                    const SizedBox(height: 28),
+                    SegmentedButton<AppMode>(
+                      segments: const [
+                        ButtonSegment(
+                          value: AppMode.local,
+                          label: Text('Local'),
+                        ),
+                        ButtonSegment(
+                          value: AppMode.online,
+                          label: Text('Online'),
+                        ),
+                      ],
+                      selected: {mode},
+                      onSelectionChanged: (value) {
+                        ref.read(appModeProvider.notifier).state = value.first;
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    if (mode == AppMode.local)
+                      _buildLocalSetup(context, playerCount)
+                    else
+                      _buildOnlineSetup(context, roomState),
+                    const SizedBox(height: 28),
+                    Text(
+                      'Basic Hanabi rules, multiplayer sync via Supabase.',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
-                  selected: {mode},
-                  onSelectionChanged: (value) {
-                    ref.read(appModeProvider.notifier).state = value.first;
-                  },
                 ),
-                const SizedBox(height: 24),
-                if (mode == AppMode.local)
-                  _buildLocalSetup(context, playerCount)
-                else
-                  _buildOnlineSetup(context, roomState),
-                const Spacer(),
-                Text(
-                  'Basic Hanabi rules, multiplayer sync via Supabase.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),
@@ -165,6 +175,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildLocalSetup(BuildContext context, int playerCount) {
+    final isCompact = ResponsiveValues.isCompact(context);
+    final chipSpacing = isCompact ? 8.0 : 12.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -174,7 +186,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(height: 12),
         Wrap(
-          spacing: 12,
+          spacing: chipSpacing,
           children: List.generate(4, (index) {
             final count = index + 2;
             return ChoiceChip(
@@ -188,7 +200,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(height: 32),
         SizedBox(
-          width: 260,
+          width: isCompact ? double.infinity : 260,
           child: ElevatedButton(
             onPressed: () {
               final players = List.generate(
@@ -202,7 +214,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ref.read(appScreenProvider.notifier).state = AppScreen.lobby;
             },
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 18),
+              padding: EdgeInsets.symmetric(vertical: isCompact ? 16 : 18),
             ),
             child: const Text('New Local Game'),
           ),
@@ -220,6 +232,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final loading = roomState?.loading ?? false;
     final error = roomState?.error;
     final maxPlayers = ref.watch(playerCountProvider);
+    final isCompact = ResponsiveValues.isCompact(context);
+    final chipSpacing = isCompact ? 8.0 : 12.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,7 +257,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(height: 8),
         Wrap(
-          spacing: 12,
+          spacing: chipSpacing,
           children: List.generate(4, (index) {
             final count = index + 2;
             return ChoiceChip(
@@ -271,40 +285,80 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: ElevatedButton(
-                onPressed: loading
-                    ? null
-                    : () async {
-                        final count = ref.read(playerCountProvider);
-                        await ref
-                            .read(onlineRoomControllerProvider.notifier)
-                            .createRoom(maxPlayers: count);
-                      },
-                child: const Text('Create Room'),
+        if (isCompact)
+          Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: loading
+                      ? null
+                      : () async {
+                          final count = ref.read(playerCountProvider);
+                          await ref
+                              .read(onlineRoomControllerProvider.notifier)
+                              .createRoom(maxPlayers: count);
+                        },
+                  child: const Text('Create Room'),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton(
-                onPressed: loading
-                    ? null
-                    : () async {
-                        final code = _roomController.text.trim().toUpperCase();
-                        if (code.isEmpty) {
-                          return;
-                        }
-                        await ref
-                            .read(onlineRoomControllerProvider.notifier)
-                            .joinRoom(code);
-                      },
-                child: const Text('Join Room'),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: loading
+                      ? null
+                      : () async {
+                          final code =
+                              _roomController.text.trim().toUpperCase();
+                          if (code.isEmpty) {
+                            return;
+                          }
+                          await ref
+                              .read(onlineRoomControllerProvider.notifier)
+                              .joinRoom(code);
+                        },
+                  child: const Text('Join Room'),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: loading
+                      ? null
+                      : () async {
+                          final count = ref.read(playerCountProvider);
+                          await ref
+                              .read(onlineRoomControllerProvider.notifier)
+                              .createRoom(maxPlayers: count);
+                        },
+                  child: const Text('Create Room'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: loading
+                      ? null
+                      : () async {
+                          final code =
+                              _roomController.text.trim().toUpperCase();
+                          if (code.isEmpty) {
+                            return;
+                          }
+                          await ref
+                              .read(onlineRoomControllerProvider.notifier)
+                              .joinRoom(code);
+                        },
+                  child: const Text('Join Room'),
+                ),
+              ),
+            ],
+          ),
         if (error != null)
           Padding(
             padding: const EdgeInsets.only(top: 12),
@@ -333,7 +387,7 @@ class LocalLobbyScreen extends ConsumerWidget {
       body: AppBackdrop(
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(ResponsiveValues.horizontalPadding(context)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -347,9 +401,12 @@ class LocalLobbyScreen extends ConsumerWidget {
                       icon: const Icon(Icons.arrow_back),
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      'Lobby',
-                      style: Theme.of(context).textTheme.headlineMedium,
+                    Expanded(
+                      child: Text(
+                        'Lobby',
+                        style: Theme.of(context).textTheme.headlineMedium,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
@@ -420,33 +477,74 @@ class OnlineLobbyScreen extends ConsumerWidget {
         : room.players[selfIndex];
     final allReady = room.players.length >= 2 &&
         room.players.every((player) => player.ready);
+    final isCompact = ResponsiveValues.isCompact(context);
 
     return Scaffold(
       body: AppBackdrop(
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(ResponsiveValues.horizontalPadding(context)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () {
-                        ref
-                            .read(onlineRoomControllerProvider.notifier)
-                            .leaveRoom();
-                      },
-                      icon: const Icon(Icons.close),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Room ${room.code}',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const Spacer(),
-                    if (isHost) const _PillLabel(label: 'Host'),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isCompact =
+                        ResponsiveValues.isCompactWidth(constraints.maxWidth);
+                    if (isCompact) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              IconButton(
+                                onPressed: () {
+                                  ref
+                                      .read(onlineRoomControllerProvider
+                                          .notifier)
+                                      .leaveRoom();
+                                },
+                                icon: const Icon(Icons.close),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Room ${room.code}',
+                                  style:
+                                      Theme.of(context).textTheme.headlineSmall,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (isHost) ...[
+                            const SizedBox(height: 8),
+                            const _PillLabel(label: 'Host'),
+                          ],
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        IconButton(
+                          onPressed: () {
+                            ref
+                                .read(onlineRoomControllerProvider.notifier)
+                                .leaveRoom();
+                          },
+                          icon: const Icon(Icons.close),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Room ${room.code}',
+                          style: Theme.of(context).textTheme.headlineMedium,
+                        ),
+                        const Spacer(),
+                        if (isHost) const _PillLabel(label: 'Host'),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -473,42 +571,89 @@ class OnlineLobbyScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: const Color(0xFF1B998B),
-                              child: Text('${index + 1}'),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Text(player.name),
-                            ),
-                            const SizedBox(width: 16),
-                            Text(
-                              player.ready ? 'Ready' : 'Not ready',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                            const SizedBox(width: 8),
-                            if (player.id == selfId)
-                              Switch(
-                                value: player.ready,
-                                onChanged: (value) {
-                                  ref
-                                      .read(onlineRoomControllerProvider
-                                          .notifier)
-                                      .toggleReady(value);
-                                },
-                              )
-                            else
-                              Icon(
-                                player.ready
-                                    ? Icons.check_circle
-                                    : Icons.radio_button_unchecked,
-                                color: player.ready
-                                    ? const Color(0xFF2A9D8F)
-                                    : Colors.grey,
-                              ),
-                          ],
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isCompact = ResponsiveValues.isCompactWidth(
+                                constraints.maxWidth);
+                            final statusText =
+                                player.ready ? 'Ready' : 'Not ready';
+                            final statusWidget = player.id == selfId
+                                ? Switch(
+                                    value: player.ready,
+                                    onChanged: (value) {
+                                      ref
+                                          .read(onlineRoomControllerProvider
+                                              .notifier)
+                                          .toggleReady(value);
+                                    },
+                                  )
+                                : Icon(
+                                    player.ready
+                                        ? Icons.check_circle
+                                        : Icons.radio_button_unchecked,
+                                    color: player.ready
+                                        ? const Color(0xFF2A9D8F)
+                                        : Colors.grey,
+                                  );
+
+                            if (!isCompact) {
+                              return Row(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: const Color(0xFF1B998B),
+                                    child: Text('${index + 1}'),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Text(player.name),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Text(
+                                    statusText,
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  statusWidget,
+                                ],
+                              );
+                            }
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      backgroundColor:
+                                          const Color(0xFF1B998B),
+                                      child: Text('${index + 1}'),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        player.name,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Text(
+                                      statusText,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall,
+                                    ),
+                                    const Spacer(),
+                                    statusWidget,
+                                  ],
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       );
                     },
@@ -525,45 +670,91 @@ class OnlineLobbyScreen extends ConsumerWidget {
                           ?.copyWith(color: Colors.redAccent),
                     ),
                   ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: (isHost && allReady && !roomState.loading)
-                            ? () {
-                                ref
-                                    .read(onlineRoomControllerProvider
-                                        .notifier)
-                                    .startGame();
-                              }
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                        ),
-                        child: Text(isHost
-                            ? 'Start Game'
-                            : 'Waiting for host'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: roomState.loading
-                            ? null
-                            : () {
-                                final ready = !selfPlayer.ready;
-                                ref
-                                    .read(onlineRoomControllerProvider
-                                        .notifier)
-                                    .toggleReady(ready);
-                              },
-                        child: Text(
-                          selfPlayer.ready ? 'Set Not Ready' : 'Set Ready',
+                if (isCompact)
+                  Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: (isHost &&
+                                  allReady &&
+                                  !roomState.loading)
+                              ? () {
+                                  ref
+                                      .read(onlineRoomControllerProvider
+                                          .notifier)
+                                      .startGame();
+                                }
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: Text(
+                            isHost ? 'Start Game' : 'Waiting for host',
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: roomState.loading
+                              ? null
+                              : () {
+                                  final ready = !selfPlayer.ready;
+                                  ref
+                                      .read(onlineRoomControllerProvider
+                                          .notifier)
+                                      .toggleReady(ready);
+                                },
+                          child: Text(
+                            selfPlayer.ready ? 'Set Not Ready' : 'Set Ready',
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed:
+                              (isHost && allReady && !roomState.loading)
+                                  ? () {
+                                      ref
+                                          .read(onlineRoomControllerProvider
+                                              .notifier)
+                                          .startGame();
+                                    }
+                                  : null,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                          ),
+                          child: Text(isHost
+                              ? 'Start Game'
+                              : 'Waiting for host'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: roomState.loading
+                              ? null
+                              : () {
+                                  final ready = !selfPlayer.ready;
+                                  ref
+                                      .read(onlineRoomControllerProvider
+                                          .notifier)
+                                      .toggleReady(ready);
+                                },
+                          child: Text(
+                            selfPlayer.ready ? 'Set Not Ready' : 'Set Ready',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 const SizedBox(height: 8),
               ],
             ),
@@ -600,41 +791,81 @@ class _LobbyPlayerCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: const Color(0xFF1B998B),
-            child: Text('${index + 1}'),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: TextFormField(
-              initialValue: player.name,
-              onChanged: (value) {
-                onChanged(player.copy(name: value));
-              },
-              decoration: const InputDecoration(
-                labelText: 'Player name',
-              ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact =
+              ResponsiveValues.isCompactWidth(constraints.maxWidth);
+          final nameField = TextFormField(
+            initialValue: player.name,
+            onChanged: (value) {
+              onChanged(player.copy(name: value));
+            },
+            decoration: const InputDecoration(
+              labelText: 'Player name',
             ),
-          ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          );
+
+          if (!isCompact) {
+            return Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: const Color(0xFF1B998B),
+                  child: Text('${index + 1}'),
+                ),
+                const SizedBox(width: 16),
+                Expanded(child: nameField),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      player.ready ? 'Ready' : 'Not ready',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    Switch(
+                      value: player.ready,
+                      onChanged: (value) {
+                        onChanged(player.copy(ready: value));
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                player.ready ? 'Ready' : 'Not ready',
-                style: Theme.of(context).textTheme.bodySmall,
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: const Color(0xFF1B998B),
+                    child: Text('${index + 1}'),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: nameField),
+                ],
               ),
-              Switch(
-                value: player.ready,
-                onChanged: (value) {
-                  onChanged(player.copy(ready: value));
-                },
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Text(
+                    player.ready ? 'Ready' : 'Not ready',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const Spacer(),
+                  Switch(
+                    value: player.ready,
+                    onChanged: (value) {
+                      onChanged(player.copy(ready: value));
+                    },
+                  ),
+                ],
               ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -670,44 +901,108 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () async {
-                        if (isOnline) {
-                          await ref
-                              .read(onlineRoomControllerProvider.notifier)
-                              .leaveRoom();
-                          return;
-                        }
-                        ref.read(appScreenProvider.notifier).state =
-                            AppScreen.home;
-                      },
-                      icon: const Icon(Icons.close),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Game Table',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const Spacer(),
-                    if (!isMyTurn)
-                      const _PillLabel(label: 'Waiting for turn'),
-                    const SizedBox(width: 8),
-                    _TokenChip(
-                      label: 'Clues',
-                      value: state.clueTokens,
-                      maxValue: 8,
-                      color: const Color(0xFF1B998B),
-                    ),
-                    const SizedBox(width: 8),
-                    _TokenChip(
-                      label: 'Fuses',
-                      value: state.fuseTokens,
-                      maxValue: 3,
-                      color: const Color(0xFFE76F51),
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isCompact =
+                        ResponsiveValues.isCompactWidth(constraints.maxWidth);
+                    final statusLabel = !isMyTurn
+                        ? const _PillLabel(label: 'Waiting for turn')
+                        : null;
+
+                    if (!isCompact) {
+                      return Row(
+                        children: [
+                          IconButton(
+                            onPressed: () async {
+                              if (isOnline) {
+                                await ref
+                                    .read(onlineRoomControllerProvider.notifier)
+                                    .leaveRoom();
+                                return;
+                              }
+                              ref.read(appScreenProvider.notifier).state =
+                                  AppScreen.home;
+                            },
+                            icon: const Icon(Icons.close),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Game Table',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const Spacer(),
+                          if (statusLabel != null) statusLabel,
+                          const SizedBox(width: 8),
+                          _TokenChip(
+                            label: 'Clues',
+                            value: state.clueTokens,
+                            maxValue: 8,
+                            color: const Color(0xFF1B998B),
+                          ),
+                          const SizedBox(width: 8),
+                          _TokenChip(
+                            label: 'Fuses',
+                            value: state.fuseTokens,
+                            maxValue: 3,
+                            color: const Color(0xFFE76F51),
+                          ),
+                        ],
+                      );
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            IconButton(
+                              onPressed: () async {
+                                if (isOnline) {
+                                  await ref
+                                      .read(onlineRoomControllerProvider
+                                          .notifier)
+                                      .leaveRoom();
+                                  return;
+                                }
+                                ref.read(appScreenProvider.notifier).state =
+                                    AppScreen.home;
+                              },
+                              icon: const Icon(Icons.close),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Game Table',
+                                style:
+                                    Theme.of(context).textTheme.headlineSmall,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (statusLabel != null) statusLabel,
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _TokenChip(
+                              label: 'Clues',
+                              value: state.clueTokens,
+                              maxValue: 8,
+                              color: const Color(0xFF1B998B),
+                            ),
+                            _TokenChip(
+                              label: 'Fuses',
+                              value: state.fuseTokens,
+                              maxValue: 3,
+                              color: const Color(0xFFE76F51),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
                 Expanded(
@@ -755,67 +1050,112 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   ) {
     final isOnline = widget.mode == AppMode.online;
     final selfId = ref.watch(selfIdProvider);
+    final isCompact = ResponsiveValues.isCompact(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildFireworks(state),
         const SizedBox(height: 16),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            _InfoCard(
-              title: 'Deck',
-              value: '${state.deck.length} cards',
-              subtitle: state.finalRound
-                  ? 'Final turns: ${state.finalTurnsRemaining}'
-                  : 'Round in progress',
-            ),
-            _InfoCard(
-              title: 'Current Turn',
-              value: currentPlayer.name,
-              subtitle: isMyTurn ? 'Your turn' : 'Waiting',
-            ),
-            _InfoCard(
-              title: 'Score',
-              value: '${state.currentScore()} / 25',
-              subtitle: 'Keep the fireworks rising',
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cardWidth =
+                ResponsiveValues.infoCardWidth(constraints.maxWidth);
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _InfoCard(
+                  title: 'Deck',
+                  value: '${state.deck.length} cards',
+                  subtitle: state.finalRound
+                      ? 'Final turns: ${state.finalTurnsRemaining}'
+                      : 'Round in progress',
+                  width: cardWidth,
+                ),
+                _InfoCard(
+                  title: 'Current Turn',
+                  value: currentPlayer.name,
+                  subtitle: isMyTurn ? 'Your turn' : 'Waiting',
+                  width: cardWidth,
+                ),
+                _InfoCard(
+                  title: 'Score',
+                  value: '${state.currentScore()} / 25',
+                  subtitle: 'Keep the fireworks rising',
+                  width: cardWidth,
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: (state.clueTokens > 0 && isMyTurn)
-                    ? () async {
-                        final clue = await showClueDialog(
-                          context,
-                          state: state,
-                        );
-                        if (clue == null) {
-                          return;
+        if (isCompact)
+          Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: (state.clueTokens > 0 && isMyTurn)
+                      ? () async {
+                          final clue = await showClueDialog(
+                            context,
+                            state: state,
+                          );
+                          if (clue == null) {
+                            return;
+                          }
+                          await _sendClue(clue);
+                          await _afterAction(isOnline: isOnline);
                         }
-                        await _sendClue(clue);
-                        await _afterAction(isOnline: isOnline);
-                      }
-                    : null,
-                icon: const Icon(Icons.lightbulb_outline),
-                label: const Text('Give Clue'),
+                      : null,
+                  icon: const Icon(Icons.lightbulb_outline),
+                  label: const Text('Give Clue'),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => _showDiscardDialog(context, state),
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('View Discards'),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showDiscardDialog(context, state),
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('View Discards'),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: (state.clueTokens > 0 && isMyTurn)
+                      ? () async {
+                          final clue = await showClueDialog(
+                            context,
+                            state: state,
+                          );
+                          if (clue == null) {
+                            return;
+                          }
+                          await _sendClue(clue);
+                          await _afterAction(isOnline: isOnline);
+                        }
+                      : null,
+                  icon: const Icon(Icons.lightbulb_outline),
+                  label: const Text('Give Clue'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _showDiscardDialog(context, state),
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('View Discards'),
+                ),
+              ),
+            ],
+          ),
         const SizedBox(height: 16),
         Text(
           'Players',
@@ -863,7 +1203,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         _SideSection(
           title: 'Action Log',
           child: SizedBox(
-            height: 220,
+            height: ResponsiveValues.actionLogHeight(context),
             child: ListView.builder(
               itemCount: min(state.actionLog.length, 12),
               itemBuilder: (context, index) {
@@ -901,6 +1241,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   }
 
   Widget _buildFireworks(GameState state) {
+    final pileWidth = ResponsiveValues.pileWidth(context);
+    final pileHeight = ResponsiveValues.pileHeight(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -931,6 +1273,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 color: color,
                 value: topValue,
                 count: pile.length,
+                width: pileWidth,
+                height: pileHeight,
               );
             }).toList(),
           ),
@@ -1009,7 +1353,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         return AlertDialog(
           title: const Text('Discard Pile'),
           content: SizedBox(
-            width: 360,
+            width: min(360, MediaQuery.sizeOf(context).width * 0.9),
             child: DiscardSummary(discard: state.discard),
           ),
           actions: [
@@ -1044,7 +1388,7 @@ class GameOverScreen extends ConsumerWidget {
       body: AppBackdrop(
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(ResponsiveValues.horizontalPadding(context)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1066,22 +1410,31 @@ class GameOverScreen extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: ColorSuit.values.map((color) {
-                    final value = resolved.pileHeights[color] ?? 0;
-                    return _InfoCard(
-                      title: colorName(color),
-                      value: value.toString(),
-                      subtitle: 'Top card',
-                      accent: suitColor(color),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final cardWidth =
+                        ResponsiveValues.infoCardWidth(constraints.maxWidth);
+                    return Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: ColorSuit.values.map((color) {
+                        final value = resolved.pileHeights[color] ?? 0;
+                        return _InfoCard(
+                          title: colorName(color),
+                          value: value.toString(),
+                          subtitle: 'Top card',
+                          accent: suitColor(color),
+                          width: cardWidth,
+                        );
+                      }).toList(),
                     );
-                  }).toList(),
+                  },
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
-                  width: 240,
+                  width: ResponsiveValues.isCompact(context)
+                      ? double.infinity
+                      : 240,
                   child: ElevatedButton(
                     onPressed: () {
                       ref.read(appScreenProvider.notifier).state = AppScreen.home;
@@ -1141,63 +1494,85 @@ class PlayerHandRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.92),
-        borderRadius: BorderRadius.circular(16),
-        border: highlight
-            ? Border.all(color: const Color(0xFF1B998B), width: 2)
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                player.name,
-                style: Theme.of(context).textTheme.titleMedium,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = max(0.0, constraints.maxWidth - 24);
+        final cardWidth = ResponsiveValues.cardWidthForHand(
+          availableWidth,
+          cardCount: player.hand.length,
+        );
+        final cardHeight = ResponsiveValues.cardHeight(cardWidth);
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.92),
+            borderRadius: BorderRadius.circular(16),
+            border: highlight
+                ? Border.all(color: const Color(0xFF1B998B), width: 2)
+                : null,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-              const SizedBox(width: 8),
-              if (isCurrent) const _PillLabel(label: 'Current'),
-              if (!isCurrent && hideHand)
-                const Padding(
-                  padding: EdgeInsets.only(left: 8),
-                  child: _PillLabel(label: 'You'),
-                ),
             ],
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: List.generate(player.hand.length, (index) {
-              final card = player.hand[index];
-              final knowledge = player.knowledge[index];
-              return GestureDetector(
-                onTap: onCardTapped == null
-                    ? null
-                    : () => onCardTapped!(index),
-                child: hideHand
-                    ? CardBack(knowledge: knowledge)
-                    : CardFace(card: card),
-              );
-            }),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      player.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (isCurrent) const _PillLabel(label: 'Current'),
+                  if (!isCurrent && hideHand)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: _PillLabel(label: 'You'),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: List.generate(player.hand.length, (index) {
+                  final card = player.hand[index];
+                  final knowledge = player.knowledge[index];
+                  return GestureDetector(
+                    onTap: onCardTapped == null
+                        ? null
+                        : () => onCardTapped!(index),
+                    child: hideHand
+                        ? CardBack(
+                            knowledge: knowledge,
+                            width: cardWidth,
+                            height: cardHeight,
+                          )
+                        : CardFace(
+                            card: card,
+                            width: cardWidth,
+                            height: cardHeight,
+                          ),
+                  );
+                }),
+              ),
+              if (hideHand) ...[
+                const SizedBox(height: 12),
+                _KnowledgePanel(knowledge: player.knowledge),
+              ],
+            ],
           ),
-          if (hideHand) ...[
-            const SizedBox(height: 12),
-            _KnowledgePanel(knowledge: player.knowledge),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -1373,9 +1748,16 @@ class _KnowledgeChip extends StatelessWidget {
 }
 
 class CardFace extends StatelessWidget {
-  const CardFace({super.key, required this.card});
+  const CardFace({
+    super.key,
+    required this.card,
+    this.width = 74,
+    this.height = 104,
+  });
 
   final Card card;
+  final double width;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -1385,8 +1767,8 @@ class CardFace extends StatelessWidget {
     final textColor =
         card.color == ColorSuit.white ? const Color(0xFF495057) : color;
     return Container(
-      width: 74,
-      height: 104,
+      width: width,
+      height: height,
       decoration: BoxDecoration(
         color: color.withOpacity(0.2),
         borderRadius: BorderRadius.circular(12),
@@ -1406,15 +1788,22 @@ class CardFace extends StatelessWidget {
 }
 
 class CardBack extends StatelessWidget {
-  const CardBack({super.key, required this.knowledge});
+  const CardBack({
+    super.key,
+    required this.knowledge,
+    this.width = 74,
+    this.height = 104,
+  });
 
   final CardKnowledge knowledge;
+  final double width;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 74,
-      height: 104,
+      width: width,
+      height: height,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF2B2D42), Color(0xFF1D3557)],
@@ -1683,7 +2072,7 @@ class _HintSummary extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
-                width: 70,
+                width: ResponsiveValues.hintNameWidth(context),
                 child: Text(
                   player.name,
                   style: Theme.of(context).textTheme.labelSmall,
@@ -1748,18 +2137,20 @@ class _InfoCard extends StatelessWidget {
     required this.value,
     required this.subtitle,
     this.accent,
+    this.width = 220,
   });
 
   final String title;
   final String value;
   final String subtitle;
   final Color? accent;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      width: 220,
+      width: width,
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(16),
@@ -1800,11 +2191,15 @@ class _PileColumn extends StatelessWidget {
     required this.color,
     required this.value,
     required this.count,
+    this.width = 56,
+    this.height = 72,
   });
 
   final ColorSuit color;
   final int value;
   final int count;
+  final double width;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -1822,8 +2217,8 @@ class _PileColumn extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Container(
-          width: 56,
-          height: 72,
+          width: width,
+          height: height,
           decoration: BoxDecoration(
             color: suit.withOpacity(0.15),
             borderRadius: BorderRadius.circular(12),
@@ -1934,6 +2329,58 @@ class _GlowOrb extends StatelessWidget {
   }
 }
 
+class ResponsiveValues {
+  static bool isCompactWidth(double width) => width < 480;
+  static bool isNarrowWidth(double width) => width < 720;
+
+  static bool isCompact(BuildContext context) =>
+      isCompactWidth(MediaQuery.sizeOf(context).width);
+
+  static double horizontalPadding(BuildContext context) =>
+      isCompact(context) ? 16 : 24;
+
+  static double titleSize(BuildContext context) =>
+      isCompact(context) ? 40 : 48;
+
+  static double infoCardWidth(double maxWidth) {
+    if (maxWidth < 420) {
+      return maxWidth;
+    }
+    if (maxWidth < 720) {
+      return (maxWidth - 12) / 2;
+    }
+    return 220;
+  }
+
+  static double actionLogHeight(BuildContext context) =>
+      isCompact(context) ? 180 : 220;
+
+  static double hintNameWidth(BuildContext context) =>
+      isCompact(context) ? 54 : 70;
+
+  static double pileWidth(BuildContext context) =>
+      isCompact(context) ? 48 : 56;
+
+  static double pileHeight(BuildContext context) =>
+      isCompact(context) ? 64 : 72;
+
+  static double cardWidthForHand(
+    double maxWidth, {
+    required int cardCount,
+  }) {
+    final spacing = 8.0;
+    final columns = min(cardCount, 5);
+    final available = maxWidth - (spacing * (columns - 1));
+    if (available <= 0) {
+      return 56.0;
+    }
+    final raw = available / columns;
+    return raw.clamp(56.0, 74.0).toDouble();
+  }
+
+  static double cardHeight(double width) => width * 1.4;
+}
+
 Future<CardAction?> showCardActionDialog(BuildContext context) {
   return showDialog<CardAction>(
     context: context,
@@ -1995,7 +2442,7 @@ Future<ClueAction?> showClueDialog(
           return AlertDialog(
             title: const Text('Give a clue'),
             content: SizedBox(
-              width: 440,
+              width: min(440, MediaQuery.sizeOf(context).width * 0.9),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
